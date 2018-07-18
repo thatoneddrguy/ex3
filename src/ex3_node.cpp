@@ -19,6 +19,8 @@ const double UPPER_LIMIT = 11.0;
 
 ros::Publisher velocity_publisher;
 ros::Subscriber pose_subscriber;
+ros::Subscriber* tturtle_subscriber = NULL;
+ros::Subscriber* xturtle_subscriber = NULL;
 turtlesim::Pose turtlesim_pose;
 const double PI = 3.14159265359;
 
@@ -34,60 +36,6 @@ struct TurtlePose {
   string topicname;
   turtlesim::Pose pose;
 };
-
-int main(int argc, char **argv)
-{	
-	ros::init(argc, argv, "ex3_node");
-	ros::NodeHandle nh;
-	double speed, angular_speed;
-	double distance, angle;
-	bool isForward, clockwise;
-	
-	velocity_publisher = nh.advertise<geometry_msgs::Twist>("/turtle1/cmd_vel", 1000);
-	pose_subscriber = nh.subscribe("/turtle1/pose", 1000, poseCallback);
-	
-	ros::Rate loop(1);
-	turtlesim::Pose goal_pose;
-
-	setDesiredOrientation(0);
-	loop.sleep();
-
-	moveGoal(0, 0, 0.01);
-	loop.sleep();	
-
-	setDesiredOrientation(0); // make sure loop() is set to 1 before this call(?)
-	loop.sleep();
-
-	ros::Rate loop_rate(100);
-
-	moveGoal(4, 0, 0.01); //actually "relative" at this point...
-	loop.sleep();
-
-	setDesiredOrientation(degrees2radians(90));
-	loop.sleep();
-
-	moveGoal(0, 2, 0.01);
-	loop.sleep();
-
-	setDesiredOrientation(degrees2radians(225));
-	loop.sleep();
-
-	moveGoal(-2, -2 / sqrt(3), 0.01); // 30/60/90 triangle
-	loop.sleep();
-
-	setDesiredOrientation(degrees2radians(135));
-	loop.sleep();
-	
-	moveGoal(-2, 2 / sqrt(3), 0.01);
-	loop.sleep();
-	
-	setDesiredOrientation(degrees2radians(270));
-	loop.sleep();
-
-	moveGoal(0, -2, 0.01);
-	loop.sleep();
-}
-
 
 ///////////////////////////////
 namespace HW {
@@ -409,4 +357,129 @@ void poseCallback(const turtlesim::Pose::ConstPtr & pose_message)
 double getDistance(double x1, double y1, double x2, double y2)
 {
 	return sqrt(pow((x1 - x2), 2) + pow((y1 - y2), 2));
+}
+
+void populateTurtleArrays(ros::NodeHandle &nh)
+{
+	int t_count, x_count = 0;
+	char* tname = new char[10];
+	ros::master::V_TopicInfo alltopics;
+
+	//get all topic names 
+	ros::master::getTopics(alltopics);
+
+	for (int i=1; i<alltopics.size()+1; i++)
+	{
+		strcpy(tname, "T");
+		string count_str = boost::lexical_cast<string>(i);
+		tname = strcat(tname, count_str.c_str());
+		if (HW::turtleExist(tname))
+		{
+			cout << tname << endl;
+	        t_count++;
+	    }
+		else
+		{
+			break;
+		}
+	}
+	tturtle_subscriber = new ros::Subscriber[t_count];
+    for (int i=0; i<t_count; i++)
+    {
+        strcpy(tname, "T");
+		string count_str = boost::lexical_cast<string>(i);
+		tname = strcat(tname, count_str.c_str());
+		string tname_str(tname); // type conversion ctor to enable concatenation operator below
+        tturtle_subscriber[i] = nh.subscribe("/" + tname_str + "/pose", 1, poseCallback);
+        cout << tturtle_subscriber[i].topicname << endl;
+    }
+
+    for (int i=1; i<alltopics.size()+1; i++)
+	{
+		strcpy(tname, "X");
+		string count_str = boost::lexical_cast<string>(i);
+		tname = strcat(tname, count_str.c_str());
+		if (HW::turtleExist(tname))
+		{
+			cout << tname << endl;
+	        x_count++;
+	    }
+		else
+		{
+			break;
+		}
+	}
+	xturtle_subscriber = new ros::Subscriber[x_count];
+
+	delete tname;
+}
+
+int main(int argc, char **argv)
+{	
+	ros::init(argc, argv, "ex3_node");
+	ros::NodeHandle nh;
+	double speed, angular_speed;
+	double distance, angle;
+	bool isForward, clockwise;
+	
+	velocity_publisher = nh.advertise<geometry_msgs::Twist>("/turtle1/cmd_vel", 1000);
+	pose_subscriber = nh.subscribe("/turtle1/pose", 1000, poseCallback);
+	
+	ros::Rate loop(1);
+	turtlesim::Pose goal_pose;
+	/*
+
+	setDesiredOrientation(0);
+	loop.sleep();
+
+	moveGoal(0, 0, 0.01);
+	loop.sleep();	
+
+	setDesiredOrientation(0); // make sure loop() is set to 1 before this call(?)
+	loop.sleep();
+
+	ros::Rate loop_rate(100);
+
+	moveGoal(4, 0, 0.01); //actually "relative" at this point...
+	loop.sleep();
+
+	setDesiredOrientation(degrees2radians(90));
+	loop.sleep();
+
+	moveGoal(0, 2, 0.01);
+	loop.sleep();
+
+	setDesiredOrientation(degrees2radians(225));
+	loop.sleep();
+
+	moveGoal(-2, -2 / sqrt(3), 0.01); // 30/60/90 triangle
+	loop.sleep();
+
+	setDesiredOrientation(degrees2radians(135));
+	loop.sleep();
+	
+	moveGoal(-2, 2 / sqrt(3), 0.01);
+	loop.sleep();
+	
+	setDesiredOrientation(degrees2radians(270));
+	loop.sleep();
+
+	moveGoal(0, -2, 0.01);
+	loop.sleep();
+	*/
+
+	/*for (TurtlePose &tturtle: HW::tturtles)
+	for (int i = 0; i < MAX_TTURTLES; i++)
+	{
+		//cout << tturtle.pose.x << endl;
+		
+        	cout << HW::tturtles[i].turtlename << endl;
+        	cout <<HW::tturtles[i].topicname << endl;
+        	/*HW::tturtles[i].pose.x = req.x;
+        	HW::tturtles[i].pose.y = req.y;
+        	HW::tturtles[i].pose.theta = req.theta;
+		
+	}*/
+	populateTurtleArrays(nh);
+	
 }
